@@ -41,30 +41,36 @@ jobs:
     steps:
       # No checkout: the build only needs the pinned Debian source package.
       - name: Resolve Versions
-        run: echo "SOURCE_VERSION=${UPSTREAM_VERSION}-${DEBIAN_REVISION}" >> "$GITHUB_ENV"
+        run: echo "SOURCE_VERSION=${UPSTREAM_VERSION}-${DEBIAN_REVISION}" >>"${GITHUB_ENV}"
 
       - name: Install Build Dependencies
         run: |
           apt-get update -qq
           apt-get install -y -qq --no-install-recommends \
-            build-essential ca-certificates curl dpkg-dev debhelper \
-            dh-sequence-python3 pybuild-plugin-pyproject \
-            python3-all python3-setuptools
+            build-essential \
+            ca-certificates \
+            curl \
+            dpkg-dev \
+            debhelper \
+            dh-sequence-python3 \
+            pybuild-plugin-pyproject \
+            python3-all \
+            python3-setuptools
 
       - name: Fetch and Verify Source
         run: |
-          mkdir -p "$RUNNER_TEMP/src"
-          cd "$RUNNER_TEMP/src"
+          mkdir -p "${RUNNER_TEMP}/src"
+          cd "${RUNNER_TEMP}/src"
 
           # The .dsc is a manifest: it names the tarballs and carries their
           # checksums. Pinning the .dsc pins the whole source package, because
           # dpkg-source verifies the tarballs against it while unpacking.
-          curl -fsSLO "$POOL_URL/pybind11-stubgen_${SOURCE_VERSION}.dsc"
+          curl -fsSLO "${POOL_URL}/pybind11-stubgen_${SOURCE_VERSION}.dsc"
           echo "${DSC_SHA256}  pybind11-stubgen_${SOURCE_VERSION}.dsc" | sha256sum -c -
 
           # dpkg-source does not download, so fetch the tarballs it names.
-          curl -fsSLO "$POOL_URL/pybind11-stubgen_${UPSTREAM_VERSION}.orig.tar.gz"
-          curl -fsSLO "$POOL_URL/pybind11-stubgen_${SOURCE_VERSION}.debian.tar.xz"
+          curl -fsSLO "${POOL_URL}/pybind11-stubgen_${UPSTREAM_VERSION}.orig.tar.gz"
+          curl -fsSLO "${POOL_URL}/pybind11-stubgen_${SOURCE_VERSION}.debian.tar.xz"
 
           # Unpacks and verifies both tarballs against the .dsc checksums.
           dpkg-source -x "pybind11-stubgen_${SOURCE_VERSION}.dsc"
@@ -74,11 +80,11 @@ jobs:
           TARGET_RELEASE: ${{ matrix.release }}
         run: |
           export DEBIAN_FRONTEND=noninteractive
-          export DEBEMAIL="build@example.invalid"
+          export DEBEMAIL="projekt-sfg-autonomous-systems@hs-esslingen.de"
           export DEBFULLNAME="Backport Build"
           export DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)"
 
-          cd "$RUNNER_TEMP/src/pybind11-stubgen-${UPSTREAM_VERSION}"
+          cd "${RUNNER_TEMP}/src/pybind11-stubgen-${UPSTREAM_VERSION}"
 
           # Cap the Python dependency so dh_python3 can never emit
           # "python3:any (>= 3.13)" when built on a newer Debian.
@@ -87,11 +93,11 @@ jobs:
           # Backport version sorts below the real Debian version.
           {
             printf 'pybind11-stubgen (%s~%s1) %s; urgency=medium\n\n' \
-              "$SOURCE_VERSION" "$TARGET_RELEASE" "$TARGET_RELEASE"
+              "${SOURCE_VERSION}" "${TARGET_RELEASE}" "${TARGET_RELEASE}"
             printf '  * Rebuild of Debian %s for Ubuntu %s.\n' \
-              "$SOURCE_VERSION" "$TARGET_RELEASE"
+              "${SOURCE_VERSION}" "${TARGET_RELEASE}"
             printf '\n -- %s <%s>  %s\n\n' \
-              "$DEBFULLNAME" "$DEBEMAIL" "$(date -R)"
+              "${DEBFULLNAME}" "${DEBEMAIL}" "$(date -R)"
             cat "debian/changelog"
           } > "debian/changelog.new"
           mv "debian/changelog.new" "debian/changelog"
@@ -99,8 +105,8 @@ jobs:
           dpkg-buildpackage -us -uc -b
 
           # dpkg-buildpackage writes to the parent of the source tree.
-          mkdir -p "$GITHUB_WORKSPACE/dist"
-          cp -v ../*.deb "$GITHUB_WORKSPACE/dist/"
+          mkdir -p "${GITHUB_WORKSPACE}/dist"
+          cp -v ../*.deb "${GITHUB_WORKSPACE}/dist/"
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
