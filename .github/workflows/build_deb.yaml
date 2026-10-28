@@ -1,0 +1,173 @@
+name: Build Debian Packages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Debian source package to rebuild. Bump this when upstream moves.
+  # The Debian revision is derived from it in the first step.
+  UPSTREAM_VERSION: "3.0.0"
+  DEBIAN_REVISION: "1"
+  POOL_URL: "https://deb.debian.org/debian/pool/main/p/pybind11-stubgen"
+  # SHA-256 of pybind11-stubgen_<SOURCE_VERSION>.dsc. The .dsc carries the
+  # checksums of both tarballs, so this pins the whole source package.
+  DSC_SHA256: "f87c516edae9f3ebace42655c3d068bc6d028059a58b449c82fd2f0719d24314"
+
+defaults:
+  run:
+    # Container jobs default to sh; use bash.
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  build:
+    name: Build (${{ matrix.release }})
+    runs-on: ubuntu-24.04
+    container:
+      image: debian:trixie
+    strategy:
+      fail-fast: false
+      # Upstream needs Python >= 3.10, so jammy (3.10) is the oldest release.
+      # The anchor is reused by the smoke-test job below.
+      matrix: &matrix
+        release: [jammy, noble]
+    steps:
+      # No checkout: the build only needs the pinned Debian source package.
+      - name: Resolve Versions
+        run: echo "SOURCE_VERSION=${UPSTREAM_VERSION}-${DEBIAN_REVISION}" >>"${GITHUB_ENV}"
+
+      - name: Install Build Dependencies
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            curl \
+            dpkg-dev \
+            debhelper \
+            dh-sequence-python3 \
+            pybuild-plugin-pyproject \
+            python3-all \
+            python3-setuptools
+
+      - name: Fetch and Verify Source
+        run: |
+          mkdir -p "${RUNNER_TEMP}/src"
+          cd "${RUNNER_TEMP}/src"
+
+          # The .dsc is a manifest: it names the tarballs and carries their
+          # checksums. Pinning the .dsc pins the whole source package, because
+          # dpkg-source verifies the tarballs against it while unpacking.
+          curl -fsSLO "${POOL_URL}/pybind11-stubgen_${SOURCE_VERSION}.dsc"
+          echo "${DSC_SHA256}  pybind11-stubgen_${SOURCE_VERSION}.dsc" | sha256sum -c -
+
+          # dpkg-source does not download, so fetch the tarballs it names.
+          curl -fsSLO "${POOL_URL}/pybind11-stubgen_${UPSTREAM_VERSION}.orig.tar.gz"
+          curl -fsSLO "${POOL_URL}/pybind11-stubgen_${SOURCE_VERSION}.debian.tar.xz"
+
+          # Unpacks and verifies both tarballs against the .dsc checksums.
+          dpkg-source -x "pybind11-stubgen_${SOURCE_VERSION}.dsc"
+
+      - name: Build Package
+        env:
+          TARGET_RELEASE: ${{ matrix.release }}
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          export DEBEMAIL="projekt-sfg-autonomous-systems@hs-esslingen.de"
+          export DEBFULLNAME="Backport Build"
+          export DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)"
+
+          cd "${RUNNER_TEMP}/src/pybind11-stubgen-${UPSTREAM_VERSION}"
+
+          # dh_python3 can emit a constraint such as 'python3:any (>= 3.13)' when built on a newer Debian, 
+          # which would make the package impossible to install on jammy and noble. The field 
+          # 'X-Python3-Version: >= 3.10' caps it, and is a no-op when no constraint would have been added.
+          sed -i 's/^Architecture: all$/Architecture: all\nX-Python3-Version: >= 3.10/' "debian/control"
+
+          # The backport version sorts below the real Debian version because of the suffix.
+          {
+            printf 'pybind11-stubgen (%s~%s1) %s; urgency=medium\n\n' \
+              "${SOURCE_VERSION}" "${TARGET_RELEASE}" "${TARGET_RELEASE}"
+            printf '  * Rebuild of Debian %s for Ubuntu %s.\n' \
+              "${SOURCE_VERSION}" "${TARGET_RELEASE}"
+            printf '\n -- %s <%s>  %s\n\n' \
+              "${DEBFULLNAME}" "${DEBEMAIL}" "$(date -R)"
+            cat "debian/changelog"
+          } > "debian/changelog.new"
+          mv "debian/changelog.new" "debian/changelog"
+
+          dpkg-buildpackage -us -uc -b
+
+          # dpkg-buildpackage writes to the parent of the source tree.
+          mkdir -p "${GITHUB_WORKSPACE}/dist"
+          cp -v ../*.deb "${GITHUB_WORKSPACE}/dist/"
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: pybind11-stubgen-${{ matrix.release }}
+          # The .deb files must sit at the artifact root, with no
+          # subdirectories; see 'Artifact Layout' in the sfg_apt_repo README.
+          # A glob like 'dist/*.deb' stores files relative to 'dist', so the
+          # artifact is flat. Uploading 'dist/' instead would keep the
+          # directory and break discovery.
+          path: dist/*.deb
+          if-no-files-found: error
+          retention-days: 1
+
+  smoke-test:
+    name: Smoke Test (${{ matrix.release }})
+    needs: build
+    runs-on: ubuntu-24.04
+    container:
+      image: ubuntu:${{ matrix.release }}
+    strategy:
+      fail-fast: false
+      matrix: *matrix
+    steps:
+      # The ubuntu images are minimal, install what the JS actions need.
+      - name: Install Prerequisites
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends ca-certificates curl
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: pybind11-stubgen-${{ matrix.release }}
+          path: debs
+
+      - name: Install and Verify
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get install -y -qq --no-install-recommends ./debs/*.deb
+          python3 -c "import pybind11_stubgen"
+          pybind11-stubgen --help >/dev/null
+          python3 -m pybind11_stubgen --help >/dev/null
+          dpkg-query -W -f='${Version}\n' python3-pybind11-stubgen
+
+  # Submit the built package(s) to the SFG APT repository.
+  submit:
+    name: Submit (${{ matrix.release }})
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build, smoke-test]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      # One job per release, because the APT repository processing workflow 
+      # only accepts a single distribution per run.
+      matrix: *matrix
+    steps:
+      # The build job already uploaded one artifact per release, so point the
+      # action at it instead of downloading and re-uploading the packages.
+      - name: Submit Package(s)
+        uses: sfg-autonomous-systems/sfg_apt_repo/.github/actions/submit_packages@improve-apt-repo-publishing
+        with:
+          submitter_app_client_id: ${{ secrets.SFG_APT_REPO_SUBMITTER_APP_CLIENT_ID }}
+          submitter_app_private_key: ${{ secrets.SFG_APT_REPO_SUBMITTER_APP_PRIVATE_KEY }}
+          distribution: ${{ matrix.release }}
+          artifact_name: pybind11-stubgen-${{ matrix.release }}
