@@ -165,7 +165,7 @@ jobs:
       # The build job already uploaded one artifact per release, so point the
       # action at it instead of downloading and re-uploading the packages.
       - name: Submit Package(s)
-        uses: sfg-autonomous-systems/sfg_apt_repo/.github/actions/submit_packages@improve-apt-repo-publishing
+        uses: sfg-autonomous-systems/sfg_apt_repo/.github/actions/submit_packages@main
         with:
           submitter_app_client_id: ${{ secrets.SFG_APT_REPO_SUBMITTER_APP_CLIENT_ID }}
           submitter_app_private_key: ${{ secrets.SFG_APT_REPO_SUBMITTER_APP_PRIVATE_KEY }}
