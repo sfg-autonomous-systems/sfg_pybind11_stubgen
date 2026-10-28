@@ -21,9 +21,7 @@ env:
 
 defaults:
   run:
-    # Container jobs default to `sh`; force bash for arrays and `pipefail`.
-    # The built-in `bash` keyword already implies `-eo pipefail`; adding `-u`
-    # makes an unset variable fail loudly instead of expanding to "".
+    # Container jobs default to sh; use bash.
     shell: bash --noprofile --norc -euo pipefail {0}
 
 jobs:
@@ -113,9 +111,9 @@ jobs:
         with:
           name: pybind11-stubgen-${{ matrix.release }}
           # The .deb files must sit at the artifact root, with no
-          # subdirectories; see "Artifact Layout" in the sfg_apt_repo README.
-          # A glob like `dist/*.deb` stores files relative to `dist`, so the
-          # artifact is flat. Uploading `dist/` instead would keep the
+          # subdirectories; see 'Artifact Layout' in the sfg_apt_repo README.
+          # A glob like 'dist/*.deb' stores files relative to 'dist', so the
+          # artifact is flat. Uploading 'dist/' instead would keep the
           # directory and break discovery.
           path: dist/*.deb
           if-no-files-found: error
