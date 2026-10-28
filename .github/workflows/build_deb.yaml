@@ -84,11 +84,12 @@ jobs:
 
           cd "${RUNNER_TEMP}/src/pybind11-stubgen-${UPSTREAM_VERSION}"
 
-          # Cap the Python dependency so dh_python3 can never emit
-          # "python3:any (>= 3.13)" when built on a newer Debian.
+          # dh_python3 can emit a constraint such as 'python3:any (>= 3.13)' when built on a newer Debian, 
+          # which would make the package impossible to install on jammy and noble. The field 
+          # 'X-Python3-Version: >= 3.10' caps it, and is a no-op when no constraint would have been added.
           sed -i 's/^Architecture: all$/Architecture: all\nX-Python3-Version: >= 3.10/' "debian/control"
 
-          # Backport version sorts below the real Debian version.
+          # The backport version sorts below the real Debian version because of the suffix.
           {
             printf 'pybind11-stubgen (%s~%s1) %s; urgency=medium\n\n' \
               "${SOURCE_VERSION}" "${TARGET_RELEASE}" "${TARGET_RELEASE}"
