@@ -1,4 +1,4 @@
-# SFG pybind11_stubgen
+# SFG pybind11-stubgen
 
 Backport builds of [`pybind11-stubgen`](https://github.com/pybind/pybind11-stubgen) for Ubuntu releases that do not ship it.
 
