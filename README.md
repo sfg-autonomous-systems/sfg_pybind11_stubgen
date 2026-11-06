@@ -1,10 +1,10 @@
 # SFG `pybind11-stubgen`
 
-[![Version][version-badge]][workflow] [![Build][build-badge]][build] [![Ubuntu][ubuntu-badge]][apt-repo]
+[![Version][version-badge]][workflow] [![Ubuntu][ubuntu-badge]][apt-repo] [![Build][build-badge]][build] 
 
 [version-badge]: https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsfg-autonomous-systems%2Fsfg_pybind11_stubgen%2Fmain%2F.github%2Fworkflows%2Fbuild_deb.yaml&query=%24.env.UPSTREAM_VERSION&label=pybind11-stubgen&color=A81D33&logo=debian&logoColor=white
-[build-badge]: https://img.shields.io/github/actions/workflow/status/sfg-autonomous-systems/sfg_pybind11_stubgen/build_deb.yaml?branch=main&label=build&logo=githubactions&logoColor=white
 [ubuntu-badge]: https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsfg-autonomous-systems%2Fsfg_pybind11_stubgen%2Fmain%2F.github%2Fworkflows%2Fbuild_deb.yaml&query=%24.jobs.build.strategy.matrix.release%5B*%5D&label=Ubuntu&color=E95420&logo=ubuntu&logoColor=white
+[build-badge]: https://img.shields.io/github/actions/workflow/status/sfg-autonomous-systems/sfg_pybind11_stubgen/build_deb.yaml?branch=main&label=build&logo=githubactions&logoColor=white
 
 [workflow]: .github/workflows/build_deb.yaml
 [build]: https://github.com/sfg-autonomous-systems/sfg_pybind11_stubgen/actions/workflows/build_deb.yaml?query=branch%3Amain
