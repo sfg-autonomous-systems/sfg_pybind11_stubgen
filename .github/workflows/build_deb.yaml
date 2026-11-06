@@ -10,14 +10,7 @@ permissions:
   contents: read
 
 env:
-  # Debian source package to rebuild. Bump this when upstream moves.
-  # The Debian revision is derived from it in the first step.
-  UPSTREAM_VERSION: 3.0.0
-  DEBIAN_REVISION: 2
   POOL_URL: https://deb.debian.org/debian/pool/main/p/pybind11-stubgen
-  # SHA-256 of pybind11-stubgen_<SOURCE_VERSION>.dsc. The .dsc carries the
-  # checksums of both tarballs, so this pins the whole source package.
-  DSC_SHA256: 24a37e422b23e52f5c01844c268feabb38fd0113ba1c8362f2162ee55dbf6d37
 
 defaults:
   run:
@@ -25,9 +18,86 @@ defaults:
     shell: bash --noprofile --norc -euo pipefail {0}
 
 jobs:
+  version-check:
+    name: Check Source Version
+    runs-on: ubuntu-24.04
+    outputs:
+      new_version: ${{ steps.check.outputs.new_version }}
+      upstream_version: ${{ steps.check.outputs.upstream_version }}
+      debian_revision: ${{ steps.check.outputs.debian_revision }}
+      dsc_sha256: ${{ steps.check.outputs.dsc_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compare Package Versions
+        id: check
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.before }}
+        run: |
+          version_file=pybind11-stubgen-package-version.env
+
+          # The version_file file uses shell-compatible KEY=value assignments.
+          source "$version_file"
+          if [[ -z "${UPSTREAM_VERSION:-}" ]]; then
+            echo "Missing UPSTREAM_VERSION in $version_file"
+            exit 1
+          elif [[ -z "${DEBIAN_REVISION:-}" ]]; then
+            echo "Missing DEBIAN_REVISION in $version_file"
+            exit 1
+          elif [[ -z "${DSC_SHA256:-}" ]]; then
+            echo "Missing DSC_SHA256 in $version_file"
+            exit 1
+          elif [[ ! "$UPSTREAM_VERSION" =~ ^[0-9A-Za-z.+:~_-]+$ ]]; then
+            echo "Invalid UPSTREAM_VERSION in $version_file: $UPSTREAM_VERSION"
+            exit 1
+          elif [[ ! "$DEBIAN_REVISION" =~ ^[0-9]+$ ]]; then
+            echo "Invalid DEBIAN_REVISION in $version_file: $DEBIAN_REVISION"
+            exit 1
+          elif [[ ! "$DSC_SHA256" =~ ^[[:xdigit:]]{64}$ ]]; then
+            echo "Invalid DSC_SHA256 in $version_file: expected 64 hexadecimal characters"
+            exit 1
+          fi
+
+          upstream_version=$UPSTREAM_VERSION
+          debian_revision=$DEBIAN_REVISION
+          dsc_sha256=$DSC_SHA256
+          echo "Pinned Debian source package: ${upstream_version}-${debian_revision}"
+
+          new_version=false
+          if [[ "$EVENT_NAME" == push ]]; then
+            previous_version=$(git show "${BASE_SHA}:${version_file}" 2>/dev/null \
+              | grep -E '^(UPSTREAM_VERSION|DEBIAN_REVISION)=' \
+              | sort || true)
+            current_version=$(grep -E '^(UPSTREAM_VERSION|DEBIAN_REVISION)=' "$version_file" | sort)
+
+            if [[ -z "$previous_version" || "$previous_version" != "$current_version" ]]; then
+              new_version=true
+              echo "Package version changed, APT submission is enabled for pushes to main."
+            else
+              echo "Package version is unchanged, APT submission will be skipped."
+            fi
+          else
+            echo "This is a pull request, APT submission will be skipped."
+          fi
+
+          {
+            echo "new_version=$new_version"
+            echo "upstream_version=$upstream_version"
+            echo "debian_revision=$debian_revision"
+            echo "dsc_sha256=$dsc_sha256"
+          } >>"$GITHUB_OUTPUT"
+
   build:
     name: Build (${{ matrix.release }})
+    needs: version-check
     runs-on: ubuntu-24.04
+    env:
+      UPSTREAM_VERSION: ${{ needs.version-check.outputs.upstream_version }}
+      DEBIAN_REVISION: ${{ needs.version-check.outputs.debian_revision }}
+      DSC_SHA256: ${{ needs.version-check.outputs.dsc_sha256 }}
     container:
       image: debian:trixie
     strategy:
@@ -153,8 +223,8 @@ jobs:
   # Submit the built package(s) to the SFG APT repository.
   submit:
     name: Submit (${{ matrix.release }})
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build, smoke-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.version-check.outputs.new_version == 'true'
+    needs: [version-check, smoke-test]
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
