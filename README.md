@@ -13,8 +13,11 @@ Backport builds of [`pybind11-stubgen`](https://github.com/pybind/pybind11-stubg
 
 1. Find the new version on the [source package page](https://packages.debian.org/source/forky/pybind11-stubgen).
 2. Update `UPSTREAM_VERSION` (and `DEBIAN_REVISION`, if Debian bumped it) in the workflow `env:` block.
-3. Update `DSC_SHA256`. Only the `.dsc` needs pinning — it carries the checksums of both tarballs, and `dpkg-source -x` verifies them while unpacking.
+3. Update `DSC_SHA256`. Only the `.dsc` needs pinning, it carries the checksums of both tarballs, and `dpkg-source -x` verifies them while unpacking.
 4. Push and let CI rebuild.
+
+**A Note on Sid/Testing (Forky) Packages:**
+Debian only keeps the single newest package revision in the active pool for non-stable releases. Once a new revision (e.g., `-2`) is accepted, the older `.dsc` (e.g., `-1`) is instantly purged from the main mirrors.
 
 ### Why Two Packages?
 
@@ -36,4 +39,3 @@ Per Debian Python policy, `python3-pybind11-stubgen` is the importable library a
 ## Adding an Ubuntu Release
 
 Add its codename to `matrix.release` in `.github/workflows/build_deb.yaml`.
-
