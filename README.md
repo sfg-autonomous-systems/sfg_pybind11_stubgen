@@ -1,8 +1,16 @@
 # SFG `pybind11-stubgen`
 
-![Ubuntu](https://img.shields.io/badge/Ubuntu-jammy%20%7C%20noble-E95420?logo=ubuntu&logoColor=white)
+[![Version][version-badge]][workflow] [![Build][build-badge]][build] [![Ubuntu][ubuntu-badge]][apt-repo]
 
-Backport builds of [`pybind11-stubgen`](https://github.com/pybind/pybind11-stubgen) for Ubuntu releases that do not ship it, rebuilt from Debian's **3.0.0-1** source package with a backport version suffix (`3.0.0-1~jammy1`, `3.0.0-1~noble1`).
+[version-badge]: https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsfg-autonomous-systems%2Fsfg_pybind11_stubgen%2Fmain%2F.github%2Fworkflows%2Fbuild_deb.yaml&query=%24.env.UPSTREAM_VERSION&label=pybind11-stubgen&color=A81D33&logo=debian&logoColor=white
+[build-badge]: https://img.shields.io/github/actions/workflow/status/sfg-autonomous-systems/sfg_pybind11_stubgen/build_deb.yaml?branch=main&label=build&logo=githubactions&logoColor=white
+[ubuntu-badge]: https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsfg-autonomous-systems%2Fsfg_pybind11_stubgen%2Fmain%2F.github%2Fworkflows%2Fbuild_deb.yaml&query=%24.jobs.build.strategy.matrix.release%5B*%5D&label=Ubuntu&color=E95420&logo=ubuntu&logoColor=white
+
+[workflow]: .github/workflows/build_deb.yaml
+[build]: https://github.com/sfg-autonomous-systems/sfg_pybind11_stubgen/actions/workflows/build_deb.yaml?query=branch%3Amain
+[apt-repo]: https://github.com/sfg-autonomous-systems/sfg_apt_repo
+
+Backport builds of [`pybind11-stubgen`](https://github.com/pybind/pybind11-stubgen) for Ubuntu releases that do not ship it, rebuilt from Debian's source package with a backport version suffix (e.g. `3.0.0-1~jammy1`, `3.0.0-1~noble1`).
 
 ## Debian Packaging
 
