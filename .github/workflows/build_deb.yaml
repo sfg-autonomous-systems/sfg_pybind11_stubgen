@@ -12,12 +12,12 @@ permissions:
 env:
   # Debian source package to rebuild. Bump this when upstream moves.
   # The Debian revision is derived from it in the first step.
-  UPSTREAM_VERSION: "3.0.0"
-  DEBIAN_REVISION: "2"
-  POOL_URL: "https://deb.debian.org/debian/pool/main/p/pybind11-stubgen"
+  UPSTREAM_VERSION: 3.0.0
+  DEBIAN_REVISION: 2
+  POOL_URL: https://deb.debian.org/debian/pool/main/p/pybind11-stubgen
   # SHA-256 of pybind11-stubgen_<SOURCE_VERSION>.dsc. The .dsc carries the
   # checksums of both tarballs, so this pins the whole source package.
-  DSC_SHA256: "24a37e422b23e52f5c01844c268feabb38fd0113ba1c8362f2162ee55dbf6d37"
+  DSC_SHA256: 24a37e422b23e52f5c01844c268feabb38fd0113ba1c8362f2162ee55dbf6d37
 
 defaults:
   run:
