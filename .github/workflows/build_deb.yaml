@@ -2,7 +2,7 @@ name: Build Debian Packages
 
 on:
   push:
-    branches: [main]
+    branches: [main, test_for_sfg_apt_repo]
   pull_request:
     branches: [main]
 
@@ -223,7 +223,7 @@ jobs:
   # Submit the built package(s) to the SFG APT repository.
   submit:
     name: Submit (${{ matrix.release }})
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.version-check.outputs.new_version == 'true'
+    #if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.version-check.outputs.new_version == 'true'
     needs: [version-check, smoke-test]
     runs-on: ubuntu-24.04
     strategy:
@@ -235,7 +235,7 @@ jobs:
       # The build job already uploaded one artifact per release, so point the
       # action at it instead of downloading and re-uploading the packages.
       - name: Submit Package(s)
-        uses: sfg-autonomous-systems/sfg_apt_repo/.github/actions/submit_packages@main
+        uses: sfg-autonomous-systems/sfg_apt_repo/.github/actions/submit_packages@test-release-package-storage
         with:
           submitter_app_client_id: ${{ secrets.SFG_APT_REPO_SUBMITTER_APP_CLIENT_ID }}
           submitter_app_private_key: ${{ secrets.SFG_APT_REPO_SUBMITTER_APP_PRIVATE_KEY }}
