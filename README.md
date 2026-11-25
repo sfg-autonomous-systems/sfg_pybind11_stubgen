@@ -20,9 +20,9 @@ Backport builds of [`pybind11-stubgen`](https://github.com/pybind/pybind11-stubg
 ### Updating to a Newer Upstream Version
 
 1. Find the new version on the [source package page](https://packages.debian.org/source/forky/pybind11-stubgen).
-2. Update `UPSTREAM_VERSION` (and `DEBIAN_REVISION`, if Debian bumped it) in the workflow `env:` block.
-3. Update `DSC_SHA256`. Only the `.dsc` needs pinning, it carries the checksums of both tarballs, and `dpkg-source -x` verifies them while unpacking.
-4. Push and let CI rebuild.
+2. Update `UPSTREAM_VERSION` and `DEBIAN_REVISION` in `pybind11-stubgen-package-version.env`.
+3. Update `DSC_SHA256` in the same file. Only the `.dsc` needs pinning: it carries the checksums of both tarballs, and `dpkg-source -x` verifies them while unpacking.
+4. Push the changes. CI always builds and runs smoke-tests. It submits to the APT repository only on pushes to `main` where `UPSTREAM_VERSION` or `DEBIAN_REVISION` changes.
 
 **A Note on Sid/Testing (Forky) Packages:**
 Debian only keeps the single newest package revision in the active pool for non-stable releases. Once a new revision (e.g., `-2`) is accepted, the older `.dsc` (e.g., `-1`) is instantly purged from the main mirrors.
@@ -40,9 +40,10 @@ Per Debian Python policy, `python3-pybind11-stubgen` is the importable library a
 
 ## Workflow Jobs
 
+- **`version-check`:** Reads the values from `pybind11-stubgen-package-version.env` and compares the package version with the previous commit. Comment-only or checksum-only edits do not count as a new version.
 - **`build`:** Rebuilds the pinned Debian source package in a `debian:trixie` container. This works because it is a pure Python package with no additional runtime dependencies.
 - **`smoke-test`:** Installs and checks the packages in each target Ubuntu release.
-- **`submit`:** Publishes each release to the SFG APT repository on pushes to `main`. The repository accepts one distribution per run, so there is one job per release.
+- **`submit`:** Publishes each release to the SFG APT repository on pushes to `main` when the package version changed. The repository accepts one distribution per run, so there is one job per release.
 
 ## Adding an Ubuntu Release
 
